@@ -6,7 +6,7 @@
 </head>
 <body>
 <h1>График пинга серверов</h1>
-<canvas id="pingChart" width="280" height="120"></canvas>
+<canvas id="pingChart" width="140" height="60"></canvas>
 
 <script>
     const ctx = document.getElementById('pingChart').getContext('2d');
@@ -82,8 +82,6 @@
             });
      }
 
-
-
     function getRandomColor() {
         const letters = '0123456789ABCDEF';
         let color = '#';
@@ -93,7 +91,7 @@
         return color;
     }
 
-    setInterval(updateChart, 15000); // Обновляем каждые 30 секунд
+    setInterval(updateChart, 300000); // Обновляем каждые 5 минут
     updateChart(); // Первичная загрузка
 </script>
 </body>
