@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Мониторинг пинга</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<h1>График пинга серверов</h1>
+<canvas id="pingChart" width="280" height="120"></canvas>
+
+<script>
+    const ctx = document.getElementById('pingChart').getContext('2d');
+    let chart;
+    const SERVER_COLORS = {
+    'doc-app': '#fc0202',
+    'doc-app2': '#efaa78',
+    'doc-app3': '#f1ce79',
+    'doc-app4': '#d1ef75',
+    'doc-app5': '#79f57b',
+    'doc-app6': '#76ecb7',
+    'doc-app7': '#7ac1f3',
+    'doc-app8': '#769bec',
+    'doc-wf1': '#8777ee',
+    'doc-wf2': '#c275e8',
+    'doc-test': '#eb77ef',
+    'doc-send1': '#e5758a',
+    'doc-send2': '#ea7575',
+    'ya.ru': '#6382ff'};
+    function updateChart() {
+        fetch('/api/ping')
+            .then(response => response.json())
+            .then(data => {
+                const datasets = [];
+                const labels = [];
+                let maxLength = 0;
+
+                for (const [server, times] of Object.entries(data.data)) {
+                    const color = SERVER_COLORS[server] || getRandomColor();
+                    datasets.push({
+                        label: server,
+                        data: times,
+                        borderColor: color,
+                        fill: false
+                    });
+                    maxLength = Math.max(maxLength, times.length);
+                }
+
+                for (let i = 0; i < maxLength; i++) {
+                    labels.push(i);
+                }
+
+                if (chart) {
+                    chart.data.labels = labels;
+                    chart.data.datasets = datasets;
+                    chart.update();
+                } else {
+                    chart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: datasets
+                        },
+                        options: {
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Время пинга (мс)'
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Измерения'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+     }
+
+
+
+    function getRandomColor() {
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+    }
+
+    setInterval(updateChart, 15000); // Обновляем каждые 30 секунд
+    updateChart(); // Первичная загрузка
+</script>
+</body>
+</html>
