@@ -12,20 +12,20 @@
     const ctx = document.getElementById('pingChart').getContext('2d');
     let chart;
     const SERVER_COLORS = {
-    'doc-app': '#fc0202',
-    'doc-app2': '#efaa78',
-    'doc-app3': '#f1ce79',
-    'doc-app4': '#d1ef75',
-    'doc-app5': '#79f57b',
-    'doc-app6': '#76ecb7',
-    'doc-app7': '#7ac1f3',
-    'doc-app8': '#769bec',
-    'doc-wf1': '#8777ee',
-    'doc-wf2': '#c275e8',
-    'doc-test': '#eb77ef',
-    'doc-send1': '#e5758a',
-    'doc-send2': '#ea7575',
-    'ya.ru': '#6382ff'};
+        'doc-app': '#fc0202',
+        'doc-app2': '#efaa78',
+        'doc-app3': '#f1ce79',
+        'doc-app4': '#d1ef75',
+        'doc-app5': '#79f57b',
+        'doc-app6': '#76ecb7',
+        'doc-app7': '#7ac1f3',
+        'doc-app8': '#769bec',
+        'doc-wf1': '#8777ee',
+        'doc-wf2': '#c275e8',
+        'doc-test': '#eb77ef',
+        'doc-send1': '#e5758a',
+        'doc-send2': '#ea7575',
+        'ya.ru': '#6382ff'};
     function updateChart() {
         fetch('/api/ping')
             .then(response => response.json())
@@ -80,7 +80,7 @@
                     });
                 }
             });
-     }
+    }
 
     function getRandomColor() {
         const letters = '0123456789ABCDEF';

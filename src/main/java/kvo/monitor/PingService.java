@@ -13,12 +13,20 @@ import java.util.regex.Pattern;
 
 @Service
 public class PingService {
-    private final Map<String, List<Double>> pingData = new HashMap<>();
-    private final List<String> servers = Arrays.asList("sdo.gaz.ru", "doc-app.gaz.ru", "doc-app2.gaz.ru", "doc-app3.gaz.ru", "doc-app4.gaz.ru", "doc-app5.gaz.ru", "doc-app6.gaz.ru", "doc-app7.gaz.ru", "doc-app8.gaz.ru", "doc-test", "doc-send1", "doc-send2", "ya.ru"); // Список серверов для пинга
+    private Map<String, List<Double>> pingData = new HashMap<>();
+    private List<String> servers = new ArrayList<>(Arrays.asList("sdo.gaz.ru", "doc-app.gaz.ru", "doc-app2.gaz.ru", "doc-app3.gaz.ru", "doc-app4.gaz.ru", "doc-app5.gaz.ru", "doc-app6.gaz.ru", "doc-app7.gaz.ru", "doc-app8.gaz.ru", "doc-test", "doc-send1", "doc-send2", "ya.ru")); // Список серверов для пинга
     public Map<String, List<Double>> getPingData() {
         return pingData;
     }
 
+    public void addServer(String serverName) {
+        if (serverName==null || serverName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Name PC is NULL");
+        }
+        if (!servers.contains(serverName)) {
+            servers.add(serverName);
+        }
+    }
     @Scheduled(fixedRate = 5000)
     public void pingServers() {
         for (String server : servers) {
@@ -37,16 +45,23 @@ public class PingService {
     }
 
     private double ping(String host) throws IOException, InterruptedException {
-        Process process = Runtime.getRuntime().exec("ping -n 1 " + host);
-
+        Process process = Runtime.getRuntime().exec("ping -n 1 -l 256 " + host);
         BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(),  "866"));
         String line;
-
         Pattern pattern = Pattern.compile("(?:time|время)[=<]([0-9.]+)(?:\\s*ms|мс)?");
-      //  "(?:time|время)[=<]([0-9.]+)(?:\\s*ms|мс)?"
-      //  "время[=<]([0-9.]+)(?:мс)?"
+        Pattern timeoutPattern = Pattern.compile("(Превышен интервал ожидания для запроса|Request timed out|Time out)",Pattern.CASE_INSENSITIVE);
+        Pattern destinationHostUnreachablePattern = Pattern.compile("(Заданный узел недоступен|Destination host unrechable)",Pattern.CASE_INSENSITIVE);
+
+        boolean timeoutDetected = false;
+        boolean hostUnreachable = false;
+
         while ((line = reader.readLine()) != null) {
-//            System.out.println(line);  // Выводим каждую строку вывода
+            if (timeoutPattern.matcher(line).find()){
+                timeoutDetected=true;
+            }
+            if (destinationHostUnreachablePattern.matcher(line).find()){
+                hostUnreachable=true;
+            }
             Matcher matcher = pattern.matcher(line);
             if (matcher.find()) {
                 process.waitFor();
@@ -54,6 +69,27 @@ public class PingService {
             }
         }
         process.waitFor();
+        int exitCode = process.exitValue();
+        if (timeoutDetected || hostUnreachable || exitCode !=0){
+            return -1.0;
+        }
         throw new IOException("Not found time ping");
+    }
+
+    public void removeServer(String computerName) {
+        if (computerName==null || computerName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Name PC is NULL");
+        }
+        String trimNane = computerName.trim();
+        if (computerName.contains(trimNane)){
+            servers.remove(trimNane);
+            pingData.remove(trimNane);
+        }
+    }
+    public void clearAllPingData() {
+        pingData.clear();
+        for (String server : servers) {
+            pingData.put(server, new ArrayList<>());
+        }
     }
 }
