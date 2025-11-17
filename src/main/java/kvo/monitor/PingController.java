@@ -20,7 +20,11 @@ public class PingController {
         model.addAttribute("servers", pingService.getPingData().keySet());
         return "index";
     }
-
+    @GetMapping("/help")
+    public String help() {
+        System.out.println("'/' - мониторинг пинга серверов; \n'/api/ping' - просмотр ответов в JSON формате; \n'/api/setPC?computerName=NameConputer' - добавить ПК для мониторинга; \n'/api/removePC?computerName=NameConputer' - удалить ПК из мониторинга; \n'/api/clearAllPingData' - очистить таблицу мониторинга.\n");
+        return "help.html";
+    }
     @GetMapping("/api/ping")
     @ResponseBody
     public Map<String, Object> getPingData() {
