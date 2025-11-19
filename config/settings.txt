@@ -1,0 +1,6 @@
+MYSQL.DRIVER=com.mysql.cj.jdbc.Driver
+MYSQL.DB_PATH=jdbc:mysql://doc-test:3306/sql-kafka
+MYSQL.USER=root
+MYSQL.PASSWORD=G@{MsEmeXl~Gsu8~{Kcv
+
+MYSQL.T_TABLE_SIZES=table_sizes

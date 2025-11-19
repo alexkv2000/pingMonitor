@@ -1,12 +1,15 @@
-package kvo.monitor;
+package kvo.monitor.ping;
 
+import kvo.monitor.sizetable.SizeTableService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -14,6 +17,8 @@ public class PingController {
 
     @Autowired
     private PingService pingService;
+    private SizeTableService sizeTableService;
+
 
     @GetMapping("/")
     public String index(Model model) {
@@ -23,7 +28,7 @@ public class PingController {
     @GetMapping("/help")
     public String help() {
         System.out.println("'/' - мониторинг пинга серверов; \n'/api/ping' - просмотр ответов в JSON формате; \n'/api/setPC?computerName=NameConputer' - добавить ПК для мониторинга; \n'/api/removePC?computerName=NameConputer' - удалить ПК из мониторинга; \n'/api/clearAllPingData' - очистить таблицу мониторинга.\n");
-        return "help.html";
+        return "help";
     }
     @GetMapping("/api/ping")
     @ResponseBody
@@ -50,5 +55,19 @@ public class PingController {
     public Map <String, Object> clearAllPingData() {
         pingService.clearAllPingData();
         return Map.of("status","success","massage","All history clear");
+    }
+    @CrossOrigin(origins = "*")
+    @GetMapping("/api/sizeTable/MSSQL")
+    public ResponseEntity<List<Map<String, Object>>> getSizeTableMSSQL() {
+        try {
+            List<Map<String, Object>> data = SizeTableService.getSizeTableMSSQL();
+            return ResponseEntity.ok(data);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+    @GetMapping("/api/sizeTable")
+    public String getSizeTable() {
+        return "sizeTable";
     }
 }

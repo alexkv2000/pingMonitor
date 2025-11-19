@@ -1,4 +1,4 @@
-package kvo.monitor;
+package kvo.monitor.ping;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;

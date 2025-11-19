@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>График размеров таблиц MSSQL</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f4f4f4;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .chart-container {
+      width: 90%;
+      margin: 0 auto;
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    canvas {
+      max-width: 100%;
+      height: auto;
+    }
+    .loading {
+      text-align: center;
+      font-size: 18px;
+      color: #666;
+    }
+    .error {
+      color: red;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+<h1>График размеров таблиц MSSQL</h1>
+<div class="chart-container">
+  <div id="loading" class="loading">Загрузка данных...</div>
+  <div id="error" class="error" style="display: none;"></div>
+  <canvas id="sizeChart"></canvas>
+</div>
+
+<script>
+  const ctx = document.getElementById('sizeChart').getContext('2d');
+  let chart;
+
+  async function loadData() {
+    try {
+      // Замените на полный URL с портом Spring Boot
+      const response = await fetch('/api/sizeTable/MSSQL');
+      if (!response.ok) {
+        throw new Error('Ошибка загрузки данных: ' + response.statusText);
+      }
+      const data = await response.json();
+      console.log(data);  // Для отладки
+      renderChart(data);
+    } catch (error) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('error').style.display = 'block';
+      document.getElementById('error').textContent = error.message;
+    }
+  }
+
+  function renderChart(data) {
+    document.getElementById('loading').style.display = 'none';
+
+    // Цвета для разных fileGroup
+    const colorMap = {
+      'PRIMARY': '#FF6384',
+      'SECONDARY': '#36A2EB',
+      'TERTIARY': '#FFCE56',
+      // Добавьте другие fileGroup по необходимости
+    };
+    const defaultColor = '#4BC0C0';
+
+    // Подготовка данных для bar chart
+    const labels = data.map(item => item.tableName);
+    const values = data.map(item => item.usedSizeMB);
+    const colors = data.map(item => colorMap[item.fileGroup] || defaultColor);
+
+    if (chart) {
+      chart.data.labels = labels;
+      chart.data.datasets[0].data = values;
+      chart.data.datasets[0].backgroundColor = colors;
+      chart.update();
+    } else {
+      chart = new Chart(ctx, {
+        type: 'bar',  // Простой bar chart
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Размер таблицы (MB)',
+            data: values,
+            backgroundColor: colors,
+            borderColor: colors.map(c => c),  // Тот же цвет для границы
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: false  // Легенда не нужна, цвета по fileGroup
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const item = data[context.dataIndex];
+                  return [
+                    'Таблица (имя) : ' + item.tableName,
+                    'Группа файлов : ' + item.fileGroup,
+                    'Размер таблицы: ' + item.lastUsedSize + ' MB',
+                    'Прирост (день): ' + Math.round(item.usedSizeMB) + ' MB',
+                    'Дата:           ' + item.lastDate
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: 'Название таблицы'
+              },
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45
+              }
+            },
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Размер (MB)'
+              }
+            }
+          }
+        }
+      });
+    }
+  }
+
+  // Загрузка данных при загрузке страницы
+  loadData();
+
+  // Обновление каждые 5 минут
+  setInterval(loadData, 300000);
+</script>
+</body>
+</html>
