@@ -91,12 +91,12 @@
     <h2>POST-запросы</h2>
 
     <div class="method">
-        <h3><code>POST /api/setPC?computerName='NameComputer'</code></h3>
+        <h3><code>POST /api/setPC?computerName={NameComputer}</code></h3>
         <p>Добавить ПК для мониторинга. Передайте имя компьютера в параметре <code>computerName</code> для добавления его в список мониторинга.</p>
     </div>
 
     <div class="method">
-        <h3><code>POST /api/removePC?computerName='NameComputer'</code></h3>
+        <h3><code>POST /api/removePC?computerName={NameComputer}</code></h3>
         <p>Удалить ПК из мониторинга. Укажите имя компьютера в параметре <code>computerName</code> для исключения его из списка.</p>
     </div>
 
@@ -122,7 +122,7 @@
 
     <div class="note">
         <h4>Примечание</h4>
-        <p>Все POST-запросы требуют корректных параметров. Убедитесь, что имя компьютера в кавычках передано правильно. Для безопасности рекомендуется использовать HTTPS и аутентификацию при работе с API.</p>
+        <p>Все POST-запросы требуют корректных параметров. Убедитесь, что имя компьютера без кавычек передано правильно.</p>
     </div>
 </div>
 </body>

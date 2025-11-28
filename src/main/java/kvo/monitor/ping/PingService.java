@@ -19,7 +19,6 @@ import java.util.regex.Pattern;
 public class PingService {
     private Map<String, List<Double>> pingData = new HashMap<>();
     //    private List<String> servers = new ArrayList<>(Arrays.asList("sdo.gaz.ru", "doc-app.gaz.ru", "doc-app2.gaz.ru", "doc-app3.gaz.ru", "doc-app4.gaz.ru", "doc-app5.gaz.ru", "doc-app6.gaz.ru", "doc-app7.gaz.ru", "doc-app8.gaz.ru", "doc-test", "doc-send1", "doc-send2", "ya.ru")); // Список серверов для пинга
-//    private List<String> servers = new ArrayList<>(Arrays.asList("sdo.gaz.ru")); // Список серверов для пинг
     @Value("${app.servers}")
     private List<String> servers = new ArrayList<>(); // Список серверов для пинг
 

@@ -37,20 +37,6 @@ public class SizeTableService {
         }
     }
 
-//    public SizeTableService() throws IOException {
-//        String currentDir = System.getProperty("user.dir");
-//        String configPath = Paths.get(currentDir, "config", "setting.txt").toString();
-//        if (currentDir.isEmpty()) {
-//            configPath = "C:\\Users\\KvochkinAY\\IdeaProjects\\Spring\\Project\\pingMonitor\\src\\config\\settings.txt";
-//        }
-//        configPath = "C:\\Users\\KvochkinAY\\IdeaProjects\\Spring\\Project\\pingMonitor\\src\\config\\settings.txt";
-//        configLoader = new ConfigLoader(configPath);
-//        mySql_Url = configLoader.getProperty("MYSQL.DB_PATH");
-//        mySql_User = configLoader.getProperty("MYSQL.USER");
-//        mySql_Password = configLoader.getProperty("MYSQL.PASSWORD");
-//        mySql_TableSizes = configLoader.getProperty("MYSQL.T_TABLE_SIZES");
-//    }
-
     public static Connection getConnectionMySql() throws SQLException, ClassNotFoundException {
         Class.forName("com.mysql.cj.jdbc.Driver");
         return DriverManager.getConnection(mySql_Url, mySql_User, mySql_Password);
@@ -58,18 +44,17 @@ public class SizeTableService {
     public static List<Map<String, Object>> getSizeTableMSSQL() throws SQLException, IOException {
         String currentDir = System.getProperty("user.dir");
         String configPath = currentDir + "\\config\\settings.txt"; //Paths.get(currentDir, "src\\config", "setting.txt").toString();
-        logger.info(configPath);
+//        logger.info(configPath);
         if (currentDir.isEmpty()) {
             configPath = "C:\\Users\\KvochkinAY\\IdeaProjects\\Spring\\Project\\pingMonitor\\src\\config\\settings.txt";
         }
-        //configPath = "C:\\Users\\KvochkinAY\\IdeaProjects\\Spring\\Project\\pingMonitor\\src\\config\\settings.txt";
         configLoader = new ConfigLoader(configPath);
         mySql_Url = configLoader.getProperty("MYSQL.DB_PATH");
         mySql_User = configLoader.getProperty("MYSQL.USER");
         mySql_Password = configLoader.getProperty("MYSQL.PASSWORD");
         mySql_TableSizes = configLoader.getProperty("MYSQL.T_TABLE_SIZES");
 
-        String getTableSQL = "select TableName, FileGroupName, UsedSizeMB, DataSize from " + mySql_TableSizes + " order by UsedSizeMB DESC";
+        String getTableSQL = "select TableName, FileGroupName, UsedSizeMB, DataSize from " + mySql_TableSizes + " NOLOCK order by UsedSizeMB DESC";
 
         List<Record> records = new ArrayList<>();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
@@ -104,16 +89,20 @@ public class SizeTableService {
                 // Последняя дата и соответствующее usedSize
                 LocalDate lastDate = tableRecords.get(tableRecords.size() - 1).date;
                 double lastUsedSize = tableRecords.get(tableRecords.size() - 1).usedSize;
+
+
+                double average = tableRecords.get(tableRecords.size() - 2).usedSize; // сравнение с предыдущей записью
+//*
                 if (lastUsedSize==0) {continue;}
-                // Сбор usedSize за даты, кроме последней
-                List<Double> previousUsedSizes = tableRecords.stream()
-                        .filter(r -> !r.date.equals(lastDate))
-                        .map(r -> r.usedSize)
-                        .collect(Collectors.toList());
-
-                // Вычисление среднего из предыдущих (если нет предыдущих, среднее = 0)
-                double average = previousUsedSizes.isEmpty() ? 0.0 : previousUsedSizes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-
+//                // Сбор usedSize за даты, кроме последней
+//                List<Double> previousUsedSizes = tableRecords.stream()
+//                        .filter(r -> !r.date.equals(lastDate))
+//                        .map(r -> r.usedSize)
+//                        .collect(Collectors.toList());
+//
+//                // Вычисление среднего из предыдущих (если нет предыдущих, среднее = 0)
+//                double average = previousUsedSizes.isEmpty() ? 0.0 : previousUsedSizes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+//*
                 // Вычисление столбца3: lastUsedSize - average
                 double difference = lastUsedSize - average;
                 if (difference<20) {continue;}
@@ -121,16 +110,16 @@ public class SizeTableService {
                 String fileGroup = tableRecords.get(0).fileGroup;
 
                 // Max usedSize для сортировки
-                double maxUsedSize = tableRecords.stream().mapToDouble(r -> r.usedSize).max().orElse(0.0);
+//                double maxUsedSize = tableRecords.stream().mapToDouble(r -> r.usedSize).max().orElse(0.0);
 
-                results.add(new Object[]{tableName, fileGroup, difference, lastDate, maxUsedSize});
+                results.add(new Object[]{tableName, fileGroup, difference, lastDate, lastUsedSize});
             }
 
             // Сортировка по убыванию difference
             results.sort((a, b) -> Double.compare((Double) b[2], (Double) a[2]));
 
             // Вывод заголовка
-            logger.info("TableName\tFileGroupName\tmaxUsedSize\tUsedSizeMB\tDataSize");
+//            logger.info("TableName\tFileGroupName\tlastUsedSize\tUsedSizeMB\tlastDate");
 
             // Вывод результатов
             List<Map<String, Object>> results1 = new ArrayList<>();
@@ -143,7 +132,7 @@ public class SizeTableService {
                     item.put("lastDate", ((LocalDate) result[3]).format(formatter));
                     item.put("lastUsedSize", result[4]);
                     results1.add(item);
-                    logger.info(item.get("tableName").toString() + "\t" + item.get("fileGroup").toString() + "\t"  + item.get("lastUsedSize").toString() + "\t"  + item.get("usedSizeMB").toString() + "\t"  + item.get("lastDate").toString());
+//                    logger.info(item.get("tableName").toString() + "\t" + item.get("fileGroup").toString() + "\t"  + item.get("lastUsedSize").toString() + "\t"  + item.get("usedSizeMB").toString() + "\t"  + item.get("lastDate").toString());
                 }
             }
             return results1;

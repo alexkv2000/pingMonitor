@@ -3,7 +3,6 @@
 <head>
     <title>Мониторинг пинга</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!--    <script src="../templates/Chart.js"></script>-->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -70,6 +69,14 @@
         h2 {
             margin-top: 40px;
         }
+
+        /* Стиль для скрытия элементов */
+        .hidden-element {
+            display: none !important;
+        }
+        .pause-btn.paused {
+            background-color: #FF9800; /* Оранжевый для паузы */
+        }
     </style>
 </head>
 <body>
@@ -77,11 +84,12 @@
 
 <div class="form-container">
     <label for="computerName">Имя компьютера:</label>
-    <input type="text" id="computerName" placeholder="Введите имя компьютера">
-    <button onclick="addComputer()" title="Добавить ПК в список">➕</button>
-    <button class="remove-btn" onclick="removeComputer()" title="Удалить ПК из списка">➖</button>
+    <input type="text" id="computerName" placeholder="Введите имя компьютера" class="admin-control">
+    <button onclick="addComputer()" title="Добавить ПК в список" class="admin-control">➕</button>
+    <button class="remove-btn admin-control" onclick="removeComputer()" title="Удалить ПК из списка">➖</button>
     <button onclick="clearPing()" title="Очистить мониторинг">🗑️</button>
     <button class="show-all-btn" onclick="showAll()" title="Показать все серверы на графике">👁️</button>
+    <button class="pause-btn" id="pauseButton" onclick="togglePause()" title="Пауза/Возобновление обновлений">Стоп экран</button>
 </div>
 
 <div class="chart-container">
@@ -96,6 +104,44 @@
 </div>
 
 <script>
+    // Получаем имя администратора из application.properties и имя текущего ПК
+    const adminName = "[[${serverAdmin}]]";
+    const currentPCName = "[[${computerName}]]";
+
+    // console.error("adminName: " + adminName + " currentPCName: "+ currentPCName);
+    // Проверяем, является ли текущий пользователь администратором
+    const isAdmin = adminName.includes(currentPCName);
+
+    // [ИСПРАВЛЕНИЕ] Объявляем флаг паузы глобально для корректной работы
+    let isPaused = false;
+
+    // Функция для скрытия/показа элементов управления администратора
+    function toggleAdminControls() {
+        const adminControls = document.querySelectorAll('.admin-control');
+        adminControls.forEach(control => {
+            if (isAdmin) {
+                control.classList.remove('hidden-element');
+            } else {
+                control.classList.add('hidden-element');
+            }
+        });
+
+        // Также скрываем label если нужно
+        const label = document.querySelector('label[for="computerName"]');
+        if (label) {
+            if (isAdmin) {
+                label.classList.remove('hidden-element');
+            } else {
+                label.classList.add('hidden-element');
+            }
+        }
+    }
+
+    // Вызываем при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleAdminControls();
+    });
+
     const ctx = document.getElementById('pingChart').getContext('2d');
     const ctx2 = document.getElementById('multipleDatasetsChart').getContext('2d');
     const legendContainer = document.getElementById('legendContainer');
@@ -120,119 +166,125 @@
         'sdo.gaz.ru': '#08195b'};
 
     function updateChart() {
-        fetch('/api/ping')
-            .then(response => response.json())
-            .then(data => {
-                const datasets = [];
-                const labels = [];
-                let maxLength = 0;
+        // [ИСПРАВЛЕНИЕ] Проверяем паузу перед запросом и обновлением графиков
+        if (!isPaused) {
+            fetch('/api/ping')
+                .then(response => response.json())
+                .then(data => {
+                    const datasets = [];
+                    const labels = [];
+                    let maxLength = 0;
 
-                for (const [server, times] of Object.entries(data.data)) {
-                    const color = SERVER_COLORS[server] || getRandomColor();
-                    datasets.push({
-                        label: server,
-                        data: times,
-                        borderColor: color,
-                        fill: false
-                    });
-                    maxLength = Math.max(maxLength, times.length);
-                }
+                    for (const [server, times] of Object.entries(data.data)) {
+                        const color = SERVER_COLORS[server] || getRandomColor();
+                        datasets.push({
+                            label: server,
+                            data: times,
+                            borderColor: color,
+                            fill: false
+                        });
+                        maxLength = Math.max(maxLength, times.length);
+                    }
 
-                for (let i = 0; i < maxLength; i++) {
-                    labels.push(i);
-                }
+                    for (let i = 0; i < maxLength; i++) {
+                        labels.push(i);
+                    }
 
-                if (chart) {
-                    chart.data.labels = labels;
-                    chart.data.datasets = datasets;
-                    chart.update();
-                } else {
-                    chart = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: labels,
-                            datasets: datasets
-                        },
-                        options: {
-                            plugins: {
-                                legend: {
-                                    display: false // Скрываем встроенную легенду
-                                }
+                    if (chart) {
+                        chart.data.labels = labels;
+                        chart.data.datasets = datasets;
+                        chart.update();
+                    } else {
+                        chart = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: labels,
+                                datasets: datasets
                             },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    title: {
-                                        display: true,
-                                        text: 'Время пинга (мс)'
+                            options: {
+                                plugins: {
+                                    legend: {
+                                        display: false // Скрываем встроенную легенду
                                     }
                                 },
-                                x: {
-                                    title: {
-                                        display: true,
-                                        text: 'Измерения'
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        title: {
+                                            display: true,
+                                            text: 'Время пинга (мс)'
+                                        }
+                                    },
+                                    x: {
+                                        title: {
+                                            display: true,
+                                            text: 'Измерения'
+                                        }
                                     }
                                 }
                             }
-                        }
-                    });
-                }
-                // Генерируем кастомную легенду
-                generateLegend(chart, legendContainer);
+                        });
+                    }
+                    // Генерируем кастомную легенду
+                    generateLegend(chart, legendContainer);
 
-                // Для второго графика (Multiple datasets) - scatter plot с точками
-                const scatterDatasets = [];
-                for (const [server, times] of Object.entries(data.data)) {
-                    const color = SERVER_COLORS[server] || getRandomColor();
-                    const scatterData = times.map((time, index) => ({ x: index, y: time }));
-                    scatterDatasets.push({
-                        label: server,
-                        data: scatterData,
-                        borderColor: color,
-                        backgroundColor: color,
-                        showLine: false, // Отображаем только точки, без линий
-                        pointRadius: 5, // Размер точек
-                        pointHoverRadius: 7
-                    });
-                }
+                    // Для второго графика (Multiple datasets) - scatter plot с точками
+                    const scatterDatasets = [];
+                    for (const [server, times] of Object.entries(data.data)) {
+                        const color = SERVER_COLORS[server] || getRandomColor();
+                        const scatterData = times.map((time, index) => ({ x: index, y: time }));
+                        scatterDatasets.push({
+                            label: server,
+                            data: scatterData,
+                            borderColor: color,
+                            backgroundColor: color,
+                            showLine: false, // Отображаем только точки, без линий
+                            pointRadius: 5, // Размер точек
+                            pointHoverRadius: 7
+                        });
+                    }
 
-                if (chart2) {
-                    chart2.data.datasets = scatterDatasets;
-                    chart2.update();
-                } else {
-                    chart2 = new Chart(ctx2, {
-                        type: 'scatter',
-                        data: {
-                            datasets: scatterDatasets
-                        },
-                        options: {
-                            plugins: {
-                                legend: {
-                                    display: false
-                                }
+                    if (chart2) {
+                        chart2.data.datasets = scatterDatasets;
+                        chart2.update();
+                    } else {
+                        chart2 = new Chart(ctx2, {
+                            type: 'scatter',
+                            data: {
+                                datasets: scatterDatasets
                             },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    title: {
-                                        display: true,
-                                        text: 'Время пинга (мс)'
+                            options: {
+                                plugins: {
+                                    legend: {
+                                        display: false
                                     }
                                 },
-                                x: {
-                                    type: 'linear',
-                                    position: 'bottom',
-                                    title: {
-                                        display: true,
-                                        text: 'Измерения'
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        title: {
+                                            display: true,
+                                            text: 'Время пинга (мс)'
+                                        }
+                                    },
+                                    x: {
+                                        type: 'linear',
+                                        position: 'bottom',
+                                        title: {
+                                            display: true,
+                                            text: 'Измерения'
+                                        }
                                     }
                                 }
                             }
-                        }
-                    });
-                }
-                generateLegend(chart2, legendContainer2);
-            });
+                        });
+                    }
+                    generateLegend(chart2, legendContainer2);
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки данных:', error);
+                });
+        }
     }
 
     function generateLegend(chart, container) {
@@ -321,7 +373,25 @@
         return color;
     }
 
+    function togglePause() {
+        isPaused = !isPaused;
+        const button = document.getElementById('pauseButton');
+        button.textContent = isPaused ? 'Продолжить ' : 'Стоп экран';
+        // [ИСПРАВЛЕНИЕ] Добавляем класс для визуального стиля паузы
+        button.classList.toggle('paused', isPaused);
+        if (!isPaused) {
+            // При возобновлении сразу обновляем
+            updateChart();
+        }
+    }
+
     function addComputer() {
+        // Дополнительная проверка на стороне клиента
+        if (!isAdmin) {
+            alert('У вас нет прав для выполнения этой операции!');
+            return;
+        }
+
         const name = document.getElementById('computerName').value.trim();
         if (!name) {
             alert('Введите имя компьютера!');
@@ -345,6 +415,12 @@
     }
 
     function removeComputer() {
+        // Дополнительная проверка на стороне клиента
+        if (!isAdmin) {
+            alert('У вас нет прав для выполнения этой операции!');
+            return;
+        }
+
         const name = document.getElementById('computerName').value.trim();
         if (!name) {
             alert('Введите имя компьютера!');
@@ -366,6 +442,7 @@
                 alert('Произошла ошибка при отправке запроса.');
             });
     }
+
     function clearPing() {
         fetch(`/api/clearAllPingData`, {
             method: 'POST'
@@ -383,6 +460,7 @@
                 alert('Произошла ошибка при отправке запроса.');
             });
     }
+
     setInterval(updateChart, 300000); // Обновляем каждые 5 минут
     updateChart(); // Первичная загрузка
 </script>

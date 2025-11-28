@@ -38,7 +38,7 @@
   </style>
 </head>
 <body>
-<h1>График размеров таблиц MSSQL</h1>
+<h1>График прироста размеров таблиц MSSQL (в день)</h1>
 <div class="chart-container">
   <div id="loading" class="loading">Загрузка данных...</div>
   <div id="error" class="error" style="display: none;"></div>
@@ -51,7 +51,6 @@
 
   async function loadData() {
     try {
-      // Замените на полный URL с портом Spring Boot
       const response = await fetch('/api/sizeTable/MSSQL');
       if (!response.ok) {
         throw new Error('Ошибка загрузки данных: ' + response.statusText);
@@ -74,7 +73,6 @@
       'PRIMARY': '#FF6384',
       'SECONDARY': '#36A2EB',
       'TERTIARY': '#FFCE56',
-      // Добавьте другие fileGroup по необходимости
     };
     const defaultColor = '#4BC0C0';
 

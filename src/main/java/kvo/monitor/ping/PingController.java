@@ -2,28 +2,40 @@ package kvo.monitor.ping;
 
 import kvo.monitor.sizetable.SizeTableService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.sql.SQLException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 
 @Controller
 public class PingController {
-
     @Autowired
     private PingService pingService;
     private SizeTableService sizeTableService;
-
-
+    @Value("${server.admin}")
+    private String serverAdmin;
     @GetMapping("/")
-    public String index(Model model) {
+    public String index(Model model) throws UnknownHostException {
         model.addAttribute("servers", pingService.getPingData().keySet());
+        model.addAttribute("serverAdmin",serverAdmin);
+        String pcName = InetAddress.getLocalHost().getHostName();
+        model.addAttribute("computerName", pcName);
         return "index";
+    }
+    @GetMapping("/column")
+    public String indexCol(Model model) throws UnknownHostException {
+        model.addAttribute("servers", pingService.getPingData().keySet());
+        model.addAttribute("serverAdmin",serverAdmin);
+        String pcName = InetAddress.getLocalHost().getHostName();
+        model.addAttribute("computerName", pcName);
+        return "indexCol";
     }
     @GetMapping("/help")
     public String help() {

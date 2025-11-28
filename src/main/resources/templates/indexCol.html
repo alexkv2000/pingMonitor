@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Мониторинг пинга</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .form-container {
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    input[type="text"] {
+      padding: 8px;
+      margin-right: 10px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+    }
+    button {
+      padding: 8px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      margin-left: 5px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .remove-btn {
+      background-color: #f44336;
+    }
+    .remove-btn:hover {
+      background-color: #da190b;
+    }
+    .show-all-btn {
+      background-color: #2196F3;
+    }
+    .show-all-btn:hover {
+      background-color: #0b7dda;
+    }
+    .chart-container {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 40px;
+    }
+    .legend-container {
+      margin-right: 20px;
+    }
+    #pingChart, #multipleDatasetsChart {
+      max-width: 90%;
+      height: auto;
+    }
+    .legend-item {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    .legend-item.hidden {
+      opacity: 0.5;
+    }
+    h2 {
+      margin-top: 40px;
+    }
+
+    /* Стиль для скрытия элементов */
+    .hidden-element {
+      display: none !important;
+    }
+    .pause-btn.paused {
+      background-color: #FF9800; /* Оранжевый для паузы */
+    }
+  </style>
+</head>
+<body>
+<h1>График пинга серверов</h1>
+
+<div class="form-container">
+  <label for="computerName">Имя компьютера:</label>
+  <input type="text" id="computerName" placeholder="Введите имя компьютера" class="admin-control">
+  <button onclick="addComputer()" title="Добавить ПК в список" class="admin-control">➕</button>
+  <button class="remove-btn admin-control" onclick="removeComputer()" title="Удалить ПК из списка">➖</button>
+  <button onclick="clearPing()" title="Очистить мониторинг">🗑️</button>
+  <button class="show-all-btn" onclick="showAll()" title="Показать все серверы на графике">👁️</button>
+  <button class="pause-btn" id="pauseButton" onclick="togglePause()" title="Пауза/Возобновление обновлений">Pause Updates</button>
+</div>
+
+<div class="chart-container">
+  <div class="legend-container" id="legendContainer"></div>
+  <canvas id="pingChart" width="140" height="60"></canvas>
+</div>
+
+<script>
+  const adminName = "[[${serverAdmin}]]";
+
+  const currentPCName = "[[${computerName}]]";
+
+  // console.error("adminName: " + adminName + " currentPCName: "+ currentPCName);
+  // Проверяем, является ли текущий пользователь администратором
+  const isAdmin = adminName.includes(currentPCName);
+  function toggleAdminControls() {
+    const adminControls = document.querySelectorAll('.admin-control');
+    adminControls.forEach(control => {
+      if (isAdmin) {
+        control.classList.remove('hidden-element');
+      } else {
+        control.classList.add('hidden-element');
+      }
+    });
+
+    // Также скрываем label если нужно
+    const label = document.querySelector('label[for="computerName"]');
+    if (label) {
+      if (isAdmin) {
+        label.classList.remove('hidden-element');
+      } else {
+        label.classList.add('hidden-element');
+      }
+    }
+  }
+
+  // Вызываем при загрузке страницы
+  document.addEventListener('DOMContentLoaded', function() {
+    toggleAdminControls();
+  });
+
+  const ctx = document.getElementById('pingChart').getContext('2d');
+  // const ctx2 = document.getElementById('multipleDatasetsChart').getContext('2d');
+  const legendContainer = document.getElementById('legendContainer');
+  // const legendContainer2 = document.getElementById('legendContainer2');
+  let chart;
+  // let chart2;
+  let isPaused = false; // Флаг для паузы обновлений
+  const SERVER_COLORS = {
+    'doc-app': '#fc0202',
+    'doc-app2': '#efaa78',
+    'doc-app3': '#f1ce79',
+    'doc-app4': '#d1ef75',
+    'doc-app5': '#79f57b',
+    'doc-app6': '#76ecb7',
+    'doc-app7': '#7ac1f3',
+    'doc-app8': '#769bec',
+    'doc-wf1': '#8777ee',
+    'doc-wf2': '#c275e8',
+    'doc-test': '#eb77ef',
+    'doc-send1': '#e5758a',
+    'doc-send2': '#a17373',
+    'ya.ru': '#6382ff',
+    'sdo.gaz.ru': '#08195b'};
+
+  function updateChart() {
+    fetch('/api/ping')
+            .then(response => response.json())
+            .then(data => {
+              if (!isPaused) {
+                renderCharts(data);
+              }
+            })
+            .catch(error => {
+              console.error('Ошибка загрузки данных:', error);
+            });
+  }
+
+  function renderCharts(data) {
+    const datasets = [];
+    const labels = [];
+    let maxLength = 0;
+
+    for (const [server, times] of Object.entries(data.data)) {
+      const color = SERVER_COLORS[server] || getRandomColor();
+      datasets.push({
+        label: server,
+        data: times,
+        backgroundColor: color,
+        borderColor: color,
+        borderWidth: 1
+      });
+      maxLength = Math.max(maxLength, times.length);
+    }
+
+    for (let i = 0; i < maxLength; i++) {
+      labels.push(i);
+    }
+
+    // Первый график: bar chart
+    if (chart) {
+      chart.data.labels = labels;
+      chart.data.datasets = datasets;
+      chart.update();
+    } else {
+      chart = new Chart(ctx, {
+        type: 'bar',  // Изменено на столбчатый график
+        data: {
+          labels: labels,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: false // Скрываем встроенную легенду
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Время пинга (мс)'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Измерения'
+              }
+            }
+          }
+        }
+      });
+    }
+    // Генерируем кастомную легенду
+    generateLegend(chart, legendContainer);
+
+    // Второй график: тоже bar chart (адаптировано из scatter)
+    const barDatasets = [];
+    for (const [server, times] of Object.entries(data.data)) {
+      const color = SERVER_COLORS[server] || getRandomColor();
+      barDatasets.push({
+        label: server,
+        data: times,
+        backgroundColor: color,
+        borderColor: color,
+        borderWidth: 1
+      });
+    }
+  }
+
+  function generateLegend(chart, container) {
+    container.innerHTML = '';
+    const ul = document.createElement('ul');
+    ul.style.listStyle = 'none';
+    ul.style.padding = '0';
+
+    chart.data.datasets.forEach((dataset, index) => {
+      const li = document.createElement('li');
+      li.className = 'legend-item';
+
+      const colorBox = document.createElement('span');
+      colorBox.style.display = 'inline-block';
+      colorBox.style.width = '20px';
+      colorBox.style.height = '20px';
+      colorBox.style.backgroundColor = dataset.backgroundColor;
+      colorBox.style.marginRight = '10px';
+      colorBox.style.border = '1px solid #000';
+
+      const label = document.createTextNode(dataset.label);
+
+      li.appendChild(colorBox);
+      li.appendChild(label);
+
+      li.onclick = () => {
+        chart.data.datasets.forEach((_, i) => {
+          const meta = chart.getDatasetMeta(i);
+          meta.hidden = (i !== index); // Скрываем все, кроме выбранного
+        });
+        chart.update();
+        // Обновляем стили для всех элементов легенды
+        updateAllLegendStyles(chart, container);
+      };
+
+      ul.appendChild(li);
+    });
+
+    container.appendChild(ul);
+    // Применяем начальные стили (все видимы по умолчанию)
+    updateAllLegendStyles(chart, container);
+  }
+
+  function updateAllLegendStyles(chart, container) {
+    const lis = container.querySelectorAll('.legend-item');
+    chart.data.datasets.forEach((_, index) => {
+      const meta = chart.getDatasetMeta(index);
+      updateLegendItemStyle(lis[index], meta.hidden);
+    });
+  }
+
+  function updateLegendItemStyle(li, isHidden) {
+    if (isHidden) {
+      li.classList.add('hidden');
+    } else {
+      li.classList.remove('hidden');
+    }
+  }
+
+  // Новая функция: Показать все датасеты на обоих графиках
+  function showAll() {
+    if (chart) {
+      chart.data.datasets.forEach((_, i) => {
+        const meta = chart.getDatasetMeta(i);
+        meta.hidden = false;
+      });
+      chart.update();
+      updateAllLegendStyles(chart, legendContainer);
+    }
+    // if (chart2) {
+    //   chart2.data.datasets.forEach((_, i) => {
+    //     const meta = chart2.getDatasetMeta(i);
+    //     meta.hidden = false;
+    //   });
+    //   chart2.update();
+    //   updateAllLegendStyles(chart2, legendContainer2);
+    // }
+  }
+
+  function togglePause() {
+    isPaused = !isPaused;
+    const button = document.getElementById('pauseButton');
+    button.textContent = isPaused ? 'Resume Updates' : 'Pause Updates';
+    button.classList.toggle('paused', isPaused);
+    if (!isPaused) {
+      // При возобновлении сразу обновляем
+      updateChart();
+    }
+  }
+
+  function getRandomColor() {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+  }
+
+  function addComputer() {
+    if (!isAdmin) {
+      alert('У вас нет прав для выполнения этой операции!');
+      return;
+    }
+    const name = document.getElementById('computerName').value.trim();
+    if (!name) {
+      alert('Введите имя компьютера!');
+      return;
+    }
+    fetch(`/api/setPC?computerName=${name}`, {
+      method: 'POST'
+    })
+            .then(response => {
+              if (response.ok) {
+                alert('ПК добавлен успешно!');
+                updateChart(); // Обновляем график после добавления
+              } else {
+                alert('Ошибка при добавлении ПК: ' + response.statusText);
+              }
+            })
+            .catch(error => {
+              console.error('Ошибка:', error);
+              alert('Произошла ошибка при отправке запроса.');
+            });
+  }
+
+  function removeComputer() {
+    if (!isAdmin) {
+      alert('У вас нет прав для выполнения этой операции!');
+      return;
+    }
+    const name = document.getElementById('computerName').value.trim();
+    if (!name) {
+      alert('Введите имя компьютера!');
+      return;
+    }
+    fetch(`/api/removePC?computerName=${name}`, {
+      method: 'POST'
+    })
+            .then(response => {
+              if (response.ok) {
+                alert('ПК удалён успешно!');
+                updateChart(); // Обновляем график после удаления
+              } else {
+                alert('Ошибка при удалении ПК: ' + response.statusText);
+              }
+            })
+            .catch(error => {
+              console.error('Ошибка:', error);
+              alert('Произошла ошибка при отправке запроса.');
+            });
+  }
+  function clearPing() {
+    fetch(`/api/clearAllPingData`, {
+      method: 'POST'
+    })
+            .then(response => {
+              if (response.ok) {
+                alert('Данные удалены!');
+                updateChart(); // Обновляем график после удаления
+              } else {
+                alert('Ошибка при удалении мониторинга таблицы: ' + response.statusText);
+              }
+            })
+            .catch(error => {
+              console.error('Ошибка:', error);
+              alert('Произошла ошибка при отправке запроса.');
+            });
+  }
+  setInterval(updateChart, 300000); // Обновляем каждые 5 минут
+  updateChart(); // Первичная загрузка
+</script>
+</body>
+</html>
