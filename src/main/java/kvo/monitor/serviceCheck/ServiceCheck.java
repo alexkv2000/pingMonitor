@@ -1,18 +1,22 @@
 package kvo.monitor.serviceCheck;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import kvo.monitor.model.ClusterStats;
 import kvo.monitor.model.DiskUsage;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.io.HttpClientConnectionManager;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 
-
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -23,17 +27,22 @@ import org.springframework.web.client.RestTemplate;
 @Service
 public class ServiceCheck extends TimerTask {
     private static final String CONNECT = "CONNECT";
+    private static final String STATUS = "STATUS";
     private static final String CLUSTER = "CLUSTER";
     private static Map<String, Integer> checkResult = new HashMap<>();
     private static Map<String, Integer> checkResultCluster = new HashMap<>();
-    private boolean statistic = false;
+    private boolean statistic;
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    public ServiceCheck(boolean statistic) {
+        this.statistic = statistic;
+    }
 
     @Override
     public void run() {
-        // Загружаем URL из application.properties
+// Загружаем URL из application.properties
         HashMap<String, String> checkCodeImage = loadServiceUrls();
         Map<String, Integer> itog = checkServiceImage(checkCodeImage);
-
 
         List<Map.Entry<String, Integer>> sortedEntries = new ArrayList<>(itog.entrySet());
         sortedEntries.sort(Map.Entry.comparingByKey());
@@ -41,15 +50,17 @@ public class ServiceCheck extends TimerTask {
         for (Map.Entry<String, Integer> entry : sortedEntries) {
             String key = entry.getKey();
             Integer value = entry.getValue();
-            if (statistic) {
-                if (value != 1) {
-                    System.out.printf("Ключ: %-36s, Значение: %-3s\n", key, value);
-                    continue;
-                }
+
+            if (value != 1) {
+                System.out.printf("Ключ: %-36s, Значение: %-3s\n", key, value);
+                continue;
+            } else if (statistic) {
                 System.out.printf("Ключ: %-36s, Значение: %-3s\n", key, value);
             }
         }
-        if (statistic) {System.out.printf("++++++++++++++++++++++++++++++++++++++++++++ %-59s\n", new Date());}
+        if (statistic) {
+            System.out.printf("++++++++++++++++++++++++++++++++++++++++++++ %-59s\n", new Date());
+        }
         Map<String, Integer> itogCluster = checkCluster(checkCodeImage);
         List<Map.Entry<String, Integer>> sortedEntriesCluster = new ArrayList<>(itogCluster.entrySet());
         sortedEntriesCluster.sort(Map.Entry.comparingByKey());
@@ -57,20 +68,18 @@ public class ServiceCheck extends TimerTask {
             String key = entry.getKey();
             Integer value = entry.getValue();
 
-            if (!statistic) {
-                if ((key.equals("Broker.count") && value == 3)) {
-                    continue;
+
+            if ((key.equals("Broker.count") && value == 3) || (key.equals("Broker.status") || value == 200) || (key.endsWith("Cluster") && value == 1)) {
+                if (statistic) {
+                    System.out.printf("Ключ: %-36s, Значение: %-3s, Время: %-16s\n", key, value, new Date());
                 }
-                if ((key.equals("Broker.status") && value == 200)) {
-                    continue;
-                }
-                if (!(key.equals("Broker") && value == 1)) {
-                    continue;
-                }
+            } else {
+                System.out.printf("Ключ: %-36s, Значение: %-3s, Время: %-16s\n", key, value, new Date());
             }
-            System.out.printf("Ключ: %-36s, Значение: %-3s, Время: %-16s\n", key, value, new Date());
         }
-        if (statistic) {System.out.printf("++++++++++++++++++++++++++++++++++++++++++++ Cluster - %s\n", new Date());}
+        if (statistic) {
+            System.out.printf("++++++++++++++++++++++++++++++++++++++++++++ Cluster - %s\n", new Date());
+        }
     }
 
     private static HashMap<String, String> loadServiceUrls() {
@@ -94,6 +103,7 @@ public class ServiceCheck extends TimerTask {
         return urls;
     }
 
+    //Основной модуль
     private static Map<String, Integer> checkServiceImage(HashMap<String, String> SERVICE_URL) {
         checkResult.clear();
 
@@ -110,11 +120,45 @@ public class ServiceCheck extends TimerTask {
 
                 int responseCode = connection.getResponseCode();
                 if (responseCode == 200) {
-//                    String keyConnect = key.split("\\.")[2].toUpperCase();
+                    // String keyConnect = key.split("\.")[2].toUpperCase();
                     boolean keyConnect = key.toUpperCase().contains(CONNECT);
-                    // Специальная логика для "Connect": только проверка кода 200
+                    boolean keyStatus = key.toUpperCase().contains(STATUS);
+                    if (keyStatus) {
+                        //но выдает {"status":"offline","errorDetails":"Ошибка подключения: Unknown error 0x80040770","timestamp":639000036961272237}
+                        // offline - checkResult.put(key, -1);
+                        // online - checkResult.put(key, 1);
+                        // Парсим JSON тело ответа
+                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                            StringBuilder response = new StringBuilder();
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                response.append(line);
+                            }
+                            JsonNode jsonNode = objectMapper.readTree(response.toString());
+                            String status = jsonNode.get("status").asText();
+                            if ("online".equals(status)) {
+                                checkResult.put(key, 1);
+                            } else if ("offline".equals(status)) {
+                                checkResult.put(key, -1);
+                            } else {
+                                checkResult.put(key, -2); // Неизвестный статус, считаем offline
+                            }
+                        } catch (Exception e) {
+                            // Ошибка парсинга JSON
+                            checkResult.put(key, -1);
+                        }
+                        continue;
+                    }
+// Специальная логика для "Connect": только проверка кода 200 возвращает ошибку "status": "offline",
                     if (keyConnect) {
-                        //работает корректно: HTTP 200");
+//работает корректно: HTTP 200");
+                        String contentType = connection.getContentType();
+                        if (contentType != null && contentType.startsWith("image/")) {
+//работает корректно: получена иконка (" + contentType + ")");
+                            checkResult.put(key, 1);
+                            continue;
+                        }
+
                         checkResult.put(key, 1);
                         continue;
                     } else { // в остальных случаях проверка на получения "image/"
@@ -205,7 +249,7 @@ public class ServiceCheck extends TimerTask {
                     }
                 } catch (MalformedURLException e) {
                     checkResultCluster.put(key, -2);
-//                    throw new RuntimeException(e);
+// throw new RuntimeException(e);
                 }
             }
         }

@@ -1,29 +1,33 @@
 package kvo.monitor.ping;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 public class PingService {
     private Map<String, List<Double>> pingData = new HashMap<>();
-    //    private List<String> servers = new ArrayList<>(Arrays.asList("sdo.gaz.ru", "doc-app.gaz.ru", "doc-app2.gaz.ru", "doc-app3.gaz.ru", "doc-app4.gaz.ru", "doc-app5.gaz.ru", "doc-app6.gaz.ru", "doc-app7.gaz.ru", "doc-app8.gaz.ru", "doc-test", "doc-send1", "doc-send2", "ya.ru")); // Список серверов для пинга
     @Value("${app.servers}")
     private List<String> servers = new ArrayList<>(); // Список серверов для пинг
+    @Value("${app.servers}")
+    private List<String> servers_default_list = new ArrayList<>();
 
     public Map<String, List<Double>> getPingData() {
         return pingData;
+    }
+
+    static Calendar DateClean;
+
+    public PingService() {
+        DateEmpty(); //Устанавливаем дату старта DateClean
     }
 
     public void addServer(String serverName) {
@@ -37,8 +41,15 @@ public class PingService {
 
     @Scheduled(fixedRate = 5000)
     public void pingServers() {
+        Calendar currentCal = Calendar.getInstance();
+        if (DateClean.get(Calendar.DAY_OF_YEAR) != currentCal.get(Calendar.DAY_OF_YEAR)) {
+            DateClean = currentCal;
+            clearServerList();
+        }
+
         if (!servers.isEmpty()) {
-            for (String server : servers) {
+            List<String> serversCopy = new ArrayList<>(servers);
+            for (String server : serversCopy) {
                 try {
                     double pingTime = ping(server);
                     pingData.computeIfAbsent(server, k -> new ArrayList<>()).add(pingTime);
@@ -52,6 +63,26 @@ public class PingService {
                 }
             }
         } else System.out.println("Список серверов пуст.");
+    }
+
+    private void clearServerList() {
+//        List<String> serversCopy = new ArrayList<>(servers);
+        //TODO заменить на  servers = new ArrayList<>(); а может быть просто servers = new ArrayList<>(servers_default_list);
+        servers = new ArrayList<>(servers_default_list);
+//        for (String server : serversCopy) {
+//            removeServer(server);
+//        }
+//        servers = new ArrayList<>(servers_default_list);
+        System.out.println("Список серверов пуст." + new Date());
+    }
+
+    private void DateEmpty() {
+        DateClean = Calendar.getInstance();
+        DateClean.setTime(new Date()); // Берем текущую дату и время
+        DateClean.set(Calendar.HOUR_OF_DAY, 0); // Часы = 0
+        DateClean.set(Calendar.MINUTE, 0);      // Минуты = 0
+        DateClean.set(Calendar.SECOND, 0);      // Секунды = 0
+        DateClean.set(Calendar.MILLISECOND, 0); // Миллисекунды = 0
     }
 
     private double ping(String host) throws IOException, InterruptedException {
@@ -98,9 +129,15 @@ public class PingService {
     }
 
     public void clearAllPingData() {
+        List<String> serversCopy = new ArrayList<>(servers);
+        //TODO можно заменить pingData = serversCopy.stream().collect(Collectors.toMap(server -> server, server -> new ArrayList<>()));
+        //TODO или так Map<String, List<Double>> tempMap = serversCopy.stream().collect(Collectors.toMap(server -> server, server -> new ArrayList<>()));
+        //TODO pingData.putAll(tempMap);
+        Map<String, List<Double>> tempMap = serversCopy.stream().collect(Collectors.toMap(server -> server, server -> new ArrayList<>()));
         pingData.clear();
-        for (String server : servers) {
-            pingData.put(server, new ArrayList<>());
-        }
+        pingData.putAll(tempMap);
+//        for (String server : serversCopy) {
+//            pingData.put(server, new ArrayList<>());
+//        }
     }
 }

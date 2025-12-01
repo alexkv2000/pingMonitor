@@ -44,7 +44,8 @@ public class SizeTableService {
     public static List<Map<String, Object>> getSizeTableMSSQL() throws SQLException, IOException {
         String currentDir = System.getProperty("user.dir");
         String configPath = currentDir + "\\config\\settings.txt"; //Paths.get(currentDir, "src\\config", "setting.txt").toString();
-//        logger.info(configPath);
+
+        logger.info(configPath);
         if (currentDir.isEmpty()) {
             configPath = "C:\\Users\\KvochkinAY\\IdeaProjects\\Spring\\Project\\pingMonitor\\src\\config\\settings.txt";
         }
