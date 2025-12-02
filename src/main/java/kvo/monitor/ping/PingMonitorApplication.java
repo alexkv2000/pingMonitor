@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.net.InetAddress;
@@ -16,11 +17,11 @@ import java.util.Timer;
 
 @SpringBootApplication
 @EnableScheduling
+@ComponentScan(basePackages = {"kvo.monitor.sizetable", "kvo.monitor.ping"})
 public class PingMonitorApplication {
     @Value("${server.sync}")
     private String SERVER_SYNC;
     private static final Logger logger = LoggerFactory.getLogger(PingMonitorApplication.class);
-
     @Value("${period.request.services}")
     private long periodRequest;
     @Value("${statusVisible}")
@@ -35,6 +36,7 @@ public class PingMonitorApplication {
         if (app.metricsServer_port.isEmpty()) {
             app.metricsServer_port = "9090";
         }
+
         if (app.SERVER_SYNC.isEmpty()) {
             app.SERVER_SYNC = "Doc-App8";
         }

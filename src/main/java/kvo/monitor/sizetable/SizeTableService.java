@@ -1,13 +1,11 @@
 package kvo.monitor.sizetable;
 
-import kvo.monitor.ConfigLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.nio.file.Paths;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -16,12 +14,16 @@ import java.util.stream.Collectors;
 @Service
 public class SizeTableService {
     private static final Logger logger = LoggerFactory.getLogger(SizeTableService.class);
-    protected static String mySql_Url = null;
-    protected static String mySql_User = null;
-    protected static String mySql_Password = null;
-    protected static String mySql_TableSizes = null;
-
-    static ConfigLoader configLoader;
+    @Value("${MYSQL.DB_PATH}")
+    protected String mySql_Url;
+    @Value("${MYSQL.USER}")
+    protected String mySql_User;
+    @Value("${MYSQL.PASSWORD}")
+    protected String mySql_Password;
+    @Value("${MYSQL.T_TABLE_SIZES}")
+    protected String mySql_TableSizes;
+    @Value("${MYSQL.DRIVER}")
+    protected String mySql_Driver;
 
     static class Record {
         String tableName;
@@ -37,23 +39,12 @@ public class SizeTableService {
         }
     }
 
-    public static Connection getConnectionMySql() throws SQLException, ClassNotFoundException {
-        Class.forName("com.mysql.cj.jdbc.Driver");
+    public Connection getConnectionMySql() throws SQLException, ClassNotFoundException {
+        Class.forName(mySql_Driver);
         return DriverManager.getConnection(mySql_Url, mySql_User, mySql_Password);
     }
-    public static List<Map<String, Object>> getSizeTableMSSQL() throws SQLException, IOException {
-        String currentDir = System.getProperty("user.dir");
-        String configPath = currentDir + "\\config\\settings.txt"; //Paths.get(currentDir, "src\\config", "setting.txt").toString();
+    public List<Map<String, Object>> getSizeTableMSSQL() throws SQLException {
 
-        logger.info(configPath);
-        if (currentDir.isEmpty()) {
-            configPath = "C:\\Users\\KvochkinAY\\IdeaProjects\\Spring\\Project\\pingMonitor\\src\\config\\settings.txt";
-        }
-        configLoader = new ConfigLoader(configPath);
-        mySql_Url = configLoader.getProperty("MYSQL.DB_PATH");
-        mySql_User = configLoader.getProperty("MYSQL.USER");
-        mySql_Password = configLoader.getProperty("MYSQL.PASSWORD");
-        mySql_TableSizes = configLoader.getProperty("MYSQL.T_TABLE_SIZES");
 
         String getTableSQL = "select TableName, FileGroupName, UsedSizeMB, DataSize from " + mySql_TableSizes + " NOLOCK order by UsedSizeMB DESC";
 

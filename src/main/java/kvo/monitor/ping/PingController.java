@@ -8,20 +8,18 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import javax.xml.crypto.Data;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Timer;
 
 @Controller
 public class PingController {
     @Autowired
     private PingService pingService;
+    @Autowired
     private SizeTableService sizeTableService;
+
     @Value("${server.admin}")
     private String serverAdmin;
     @GetMapping("/")
@@ -73,9 +71,9 @@ public class PingController {
     }
     @CrossOrigin(origins = "*")
     @GetMapping("/api/sizeTable/MSSQL")
-    public ResponseEntity<List<Map<String, Object>>> getSizeTableMSSQL() {
+    public ResponseEntity<List<Map<String, Object>>> getSizeTable_() {
         try {
-            List<Map<String, Object>> data = SizeTableService.getSizeTableMSSQL();
+            List<Map<String, Object>> data = sizeTableService.getSizeTableMSSQL();
             return ResponseEntity.ok(data);
         } catch (Exception e) {
             return ResponseEntity.status(500).build();

@@ -13,20 +13,23 @@
             padding: 20px;
             line-height: 1.6;
         }
+
         .container {
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
             background: white;
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
+
         h1 {
             text-align: center;
             color: #2c3e50;
             margin-bottom: 30px;
             font-size: 2.5em;
         }
+
         h2 {
             color: #3498db;
             border-bottom: 2px solid #3498db;
@@ -34,6 +37,7 @@
             margin-top: 40px;
             font-size: 1.8em;
         }
+
         .method {
             background: #ecf0f1;
             border-left: 5px solid #3498db;
@@ -41,15 +45,18 @@
             margin-bottom: 20px;
             border-radius: 5px;
         }
+
         .method h3 {
             margin: 0 0 10px 0;
             color: #2c3e50;
             font-size: 1.3em;
         }
+
         .method p {
             margin: 0;
             color: #7f8c8d;
         }
+
         .method code {
             background: #34495e;
             color: #ecf0f1;
@@ -58,6 +65,7 @@
             font-family: 'Courier New', Courier, monospace;
             font-size: 0.9em;
         }
+
         .note {
             background: #fff3cd;
             border: 1px solid #ffeaa7;
@@ -66,9 +74,38 @@
             border-radius: 5px;
             margin-top: 30px;
         }
+
         .note h4 {
             margin: 0 0 10px 0;
             color: #856404;
+        }
+
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #ecf0f1;
+            border-left: 5px solid #3498db;
+            border-radius: 5px;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .highlight {
+            color: #3497da;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -85,19 +122,22 @@
 
     <div class="method">
         <h3><code>GET /api/ping</code></h3>
-        <p>Просмотр ответов в JSON формате. Возвращает данные о пингах в структурированном JSON-объекте для программной обработки.</p>
+        <p>Просмотр ответов в JSON формате. Возвращает данные о пингах в структурированном JSON-объекте для программной
+            обработки.</p>
     </div>
 
     <h2>POST-запросы</h2>
 
     <div class="method">
         <h3><code>POST /api/setPC?computerName={NameComputer}</code></h3>
-        <p>Добавить ПК для мониторинга. Передайте имя компьютера в параметре <code>computerName</code> для добавления его в список мониторинга.</p>
+        <p>Добавить ПК для мониторинга. Передайте имя компьютера в параметре <code>computerName</code> для добавления
+            его в список мониторинга.</p>
     </div>
 
     <div class="method">
         <h3><code>POST /api/removePC?computerName={NameComputer}</code></h3>
-        <p>Удалить ПК из мониторинга. Укажите имя компьютера в параметре <code>computerName</code> для исключения его из списка.</p>
+        <p>Удалить ПК из мониторинга. Укажите имя компьютера в параметре <code>computerName</code> для исключения его из
+            списка.</p>
     </div>
 
     <div class="method">
@@ -112,17 +152,20 @@
 
     <div class="method">
         <h3><code>GET /api/sizeTable/MSSQL</code></h3>
-        <p>Просмотр ответов в формате JSON данных. Возвращает данные о размерности БД в JSON-объекте для программной обработки.</p>
+        <p>Просмотр ответов в формате JSON данных. Возвращает данные о размерности БД в JSON-объекте для программной
+            обработки.</p>
     </div>
 
     <div class="method">
         <h3><code>GET /api/sizeTable</code></h3>
-        <p>Просмотр результата роста БД MSSQL в разрезе таблиц. Возвращает страницу с информацией о размерности БД в графическом виде.</p>
+        <p>Просмотр результата роста БД MSSQL в разрезе таблиц. Возвращает страницу с информацией о размерности БД в
+            графическом виде.</p>
     </div>
 
     <div class="note">
         <h4>Примечание</h4>
-        <p>Все POST-запросы требуют корректных параметров. Убедитесь, что имя компьютера без кавычек передано правильно.</p>
+        <p>Все POST-запросы требуют корректных параметров. Убедитесь, что имя компьютера без кавычек передано
+            правильно.</p>
     </div>
     <h1>Сервис Prometheus</h1>
 
@@ -130,9 +173,58 @@
 
     <div class="method">
         <h3><code>GET /metrics</code></h3>
-        <p>Просмотр метрик в специальном формате Prometheus. Данные в графическом виде отображаются в сервисе мониторинга инфраструктуры DocsVision.</p>
-        <p>Порт по умолчанию - 9990.</p>
-        <p>Основные параметры : service_check_status и cluster_check_status.</p>
+        <p>Просмотр метрик в специальном формате Prometheus. Данные в графическом виде отображаются в сервисе
+            мониторинга инфраструктуры DocsVision (http://doc-test:3000).</p>
+        <p>Порт (по умолчанию) - <code>9990</code>.</p>
+        <p>Основные параметры TYPE: <code>service_check_status</code> и <code>cluster_check_status</code>.</p>
+        <p>Все настройки нужно делать в файле <span class="highlight">"application.properties</span>.</p>
+        <p></p>
+
+        <h3>Правила настройки метрик сервисов</h3>
+
+        <p><code>service</code>.doc-app5.<code>Fat</code>=http://doc-app{x}:1337/favicon.ico?t=1764160106405</p>
+        <p><code>service</code>.doc-app5.<code>Thin</code>=http://doc-app{x}/DocsvisionThinClient/favicon.ico</p>
+        <p><code>service</code>.doc-app5.<code>Status</code>=http://doc-app{x}:4842/CDvService/InfoPage/TryConnectTo?ServerName=doc-app{х}}</p>
+        <p><code>service</code>.doc-send2.ping.<code>Connect</code>=http://doc-send2:8880/api/ping</p>
+
+        <ul>
+            <li><strong>service</strong> - ключевое слово, для попадания на проверку ссылки.</li>
+            <li><strong>Status</strong> - проверка на отклик <span class="highlight">"status":"online"</span> - иначе
+                ошибка.
+            </li>
+            <li><strong>Fat / Thin</strong> - проверка на получение <span class="highlight">"image/"</span> -
+                иначе ошибка.
+            </li>
+            <li><strong>Connect</strong> - проверка на отклик статус <span class="highlight">"200"</span> -
+                иначе ошибка.
+            </li>
+
+            <h2>Пример для Cluster</h2>
+            <p><code>service</code>.doc-send2.<code>Cluster</code>=http://doc-send2:8080/api/clusters/local/stats</p>
+            <li><strong>Cluster</strong> - специальная проверка. Проверяет теги <span class="highlight">"brokerCount"</span>, <span class="highlight">"diskUsage"</span>.</li>
+        </ul>
+
+        <h2>Пример ответа для Cluster</h2>
+        <pre>
+{
+  "brokerCount": 3,
+  ...
+  "diskUsage": [
+    {
+      "brokerId": 1,
+      "segmentSize": 895092174,
+      "segmentCount": 52
+    },
+    ...
+    {
+      "brokerId": 3,
+      "segmentSize": 895092174,
+      "segmentCount": 52
+    }
+  ],
+  "version": "3.9-IV0"
+}
+    </pre>
     </div>
 
 </div>

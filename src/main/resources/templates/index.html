@@ -77,10 +77,18 @@
         .pause-btn.paused {
             background-color: #FF9800; /* Оранжевый для паузы */
         }
+
+        /* Стиль для заголовка с датой */
+        h1 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
-<h1>График пинга серверов</h1>
+<!-- Изменён заголовок: добавлен span для даты справа -->
+<h1><span>График пинга серверов</span> <span id="currentDateTime"></span></h1>
 
 <div class="form-container">
     <label for="computerName">Имя компьютера:</label>
@@ -112,8 +120,24 @@
     // Проверяем, является ли текущий пользователь администратором
     const isAdmin = adminName.includes(currentPCName);
 
-    // [ИСПРАВЛЕНИЕ] Объявляем флаг паузы глобально для корректной работы
+    // Объявляем флаг паузы глобально для корректной работы
     let isPaused = false;
+
+    // Функция для форматирования даты в формате dd-MM-yyyy HH:mm:ss
+    function formatDateTime(date) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+    }
+
+    // Функция для обновления даты и времени
+    function updateDateTime() {
+        document.getElementById('currentDateTime').textContent = formatDateTime(new Date());
+    }
 
     // Функция для скрытия/показа элементов управления администратора
     function toggleAdminControls() {
@@ -140,6 +164,9 @@
     // Вызываем при загрузке страницы
     document.addEventListener('DOMContentLoaded', function() {
         toggleAdminControls();
+        // Запускаем обновление даты сразу и каждую секунду
+        updateDateTime();
+        setInterval(updateDateTime, 1000);
     });
 
     const ctx = document.getElementById('pingChart').getContext('2d');
@@ -166,7 +193,7 @@
         'sdo.gaz.ru': '#08195b'};
 
     function updateChart() {
-        // [ИСПРАВЛЕНИЕ] Проверяем паузу перед запросом и обновлением графиков
+        // Проверяем паузу перед запросом и обновлением графиков
         if (!isPaused) {
             fetch('/api/ping')
                 .then(response => response.json())
@@ -175,7 +202,8 @@
                     const labels = [];
                     let maxLength = 0;
 
-                    for (const [server, times] of Object.entries(data.data)) {
+                    const sortedData = Object.entries(data.data).sort((a, b) => a[0].localeCompare(b[0]));
+                    for (const [server, times] of sortedData) {
                         const color = SERVER_COLORS[server] || getRandomColor();
                         datasets.push({
                             label: server,
@@ -377,7 +405,7 @@
         isPaused = !isPaused;
         const button = document.getElementById('pauseButton');
         button.textContent = isPaused ? 'Продолжить ' : 'Стоп экран';
-        // [ИСПРАВЛЕНИЕ] Добавляем класс для визуального стиля паузы
+        // Добавляем класс для визуального стиля паузы
         button.classList.toggle('paused', isPaused);
         if (!isPaused) {
             // При возобновлении сразу обновляем
@@ -461,7 +489,7 @@
             });
     }
 
-    setInterval(updateChart, 5000); // Обновляем каждые 5 минут
+    setInterval(updateChart, 5000); // Обновляем каждые 5 секунд (исправлен комментарий)
     updateChart(); // Первичная загрузка
 </script>
 </body>
