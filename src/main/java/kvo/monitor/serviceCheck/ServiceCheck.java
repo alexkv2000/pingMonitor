@@ -2,13 +2,24 @@ package kvo.monitor.serviceCheck;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
+import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
+import io.micrometer.core.instrument.binder.system.UptimeMetrics;
+import io.micrometer.prometheus.PrometheusConfig;
+import io.micrometer.prometheus.PrometheusMeterRegistry;
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.exporter.HTTPServer;
 import kvo.monitor.model.ClusterStats;
 import kvo.monitor.model.DiskUsage;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.io.HttpClientConnectionManager;
-import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -21,6 +32,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.web.client.RestTemplate;
 
@@ -33,13 +45,48 @@ public class ServiceCheck extends TimerTask {
     private static Map<String, Integer> checkResultCluster = new HashMap<>();
     private boolean statistic;
     private static final ObjectMapper objectMapper = new ObjectMapper();
-
-    public ServiceCheck(boolean statistic) {
+    //Prometheus - start
+    private static PrometheusMeterRegistry registry;
+    private static final Logger logger = LoggerFactory.getLogger(ServiceCheck.class);
+    private static HTTPServer metricsServer;
+    private static Map<String, AtomicInteger> serviceStatusMap = new HashMap<>();
+    private static Map<String, AtomicInteger> clusterStatusMap = new HashMap<>();
+    private static String metricsServer_port;
+    public ServiceCheck(boolean statistic, String metricsServer_port) {
         this.statistic = statistic;
+        ServiceCheck.metricsServer_port = metricsServer_port;
     }
+    private static void initializeMonitoring() {
+        if (metricsServer != null) {
+            // Мониторинг уже инициализирован, пропускаем
+            return;
+        }
+        try {
+            // Создание Prometheus registry
+            registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+            // Биндеры для мониторинга JVM
+            new JvmMemoryMetrics().bindTo(registry);
+            new JvmGcMetrics().bindTo(registry);
+            new JvmThreadMetrics().bindTo(registry);
+            new ProcessorMetrics().bindTo(registry);
+            new UptimeMetrics().bindTo(registry);
+            // Запуск HTTP сервера для Prometheus
+            CollectorRegistry collectorRegistry = registry.getPrometheusRegistry();
+            metricsServer = new HTTPServer.Builder()
+                    .withPort(Integer.parseInt(metricsServer_port))
+                    .withRegistry(collectorRegistry)
+                    .build();
+            logger.info("Metrics server started on http://......:" + metricsServer_port + "/metrics");
+
+        } catch (Exception e) {
+            logger.error("Failed to initialize monitoring in ConsumerServer", e);
+        }
+    }
+    //Prometheus - Finish
 
     @Override
     public void run() {
+        initializeMonitoring(); //Инициализация Prometheus
 // Загружаем URL из application.properties
         HashMap<String, String> checkCodeImage = loadServiceUrls();
         Map<String, Integer> itog = checkServiceImage(checkCodeImage);
@@ -50,16 +97,17 @@ public class ServiceCheck extends TimerTask {
         for (Map.Entry<String, Integer> entry : sortedEntries) {
             String key = entry.getKey();
             Integer value = entry.getValue();
-
+// Обновление метрики для статуса сервиса
+            updateServiceStatusMetric(key, value);
             if (value != 1) {
-                System.out.printf("Ключ: %-36s, Значение: %-3s\n", key, value);
+                logger.error("Ключ: " + key + ", Значение: " + value);
                 continue;
             } else if (statistic) {
-                System.out.printf("Ключ: %-36s, Значение: %-3s\n", key, value);
+                logger.info("Ключ: " + key + ", Значение: " + value);
             }
         }
         if (statistic) {
-            System.out.printf("++++++++++++++++++++++++++++++++++++++++++++ %-59s\n", new Date());
+            logger.info("++++++++++++++++++++++++++++++++++++++++++++");
         }
         Map<String, Integer> itogCluster = checkCluster(checkCodeImage);
         List<Map.Entry<String, Integer>> sortedEntriesCluster = new ArrayList<>(itogCluster.entrySet());
@@ -68,26 +116,53 @@ public class ServiceCheck extends TimerTask {
             String key = entry.getKey();
             Integer value = entry.getValue();
 
-
+// Обновление метрики для статуса кластера
+            updateClusterStatusMetric(key, value);
             if ((key.equals("Broker.count") && value == 3) || (key.equals("Broker.status") || value == 200) || (key.endsWith("Cluster") && value == 1)) {
                 if (statistic) {
-                    System.out.printf("Ключ: %-36s, Значение: %-3s, Время: %-16s\n", key, value, new Date());
+                    logger.info("Ключ: " + key + ", Значение: " + value);
                 }
             } else {
-                System.out.printf("Ключ: %-36s, Значение: %-3s, Время: %-16s\n", key, value, new Date());
+                logger.error("Ключ: " + key + ", Значение: " + value);
             }
         }
         if (statistic) {
-            System.out.printf("++++++++++++++++++++++++++++++++++++++++++++ Cluster - %s\n", new Date());
+            logger.info("++++++++++++++++++++++++++++++++++++++++++++");
+        }
+    }
+    // Метод для обновления метрики статуса сервиса
+    private void updateServiceStatusMetric(String key, Integer value) {
+        if (!serviceStatusMap.containsKey(key)) {
+            AtomicInteger ai = new AtomicInteger(value);
+            serviceStatusMap.put(key, ai);
+            Gauge.builder("service_check_status", ai, AtomicInteger::get)
+                    .description("Status of service check")
+                    .tag("service", key)
+                    .register(registry);
+        } else {
+            serviceStatusMap.get(key).set(value);
         }
     }
 
+    // Метод для обновления метрики статуса кластера
+    private void updateClusterStatusMetric(String key, Integer value) {
+        if (!clusterStatusMap.containsKey(key)) {
+            AtomicInteger ai = new AtomicInteger(value);
+            clusterStatusMap.put(key, ai);
+            Gauge.builder("cluster_check_status", ai, AtomicInteger::get)
+                    .description("Status of cluster check")
+                    .tag("cluster_param", key)
+                    .register(registry);
+        } else {
+            clusterStatusMap.get(key).set(value);
+        }
+    }
     private static HashMap<String, String> loadServiceUrls() {
         HashMap<String, String> urls = new HashMap<>();
         Properties properties = new Properties();
         try (InputStream input = ServiceCheck.class.getClassLoader().getResourceAsStream("application.properties")) {
             if (input == null) {
-                System.err.println("Файл application.properties не найден в classpath!");
+                logger.error("Файл application.properties не найден в classpath!");
                 return urls;
             }
             properties.load(input);
@@ -98,7 +173,7 @@ public class ServiceCheck extends TimerTask {
                 }
             }
         } catch (IOException e) {
-            System.err.println("Ошибка при загрузке application.properties: " + e.getMessage());
+            logger.error("Ошибка при загрузке application.properties: " + e.getMessage());
         }
         return urls;
     }
@@ -215,7 +290,6 @@ public class ServiceCheck extends TimerTask {
                     try {
                         ResponseEntity<ClusterStats> response = restTemplate.getForEntity(clusterUrl, ClusterStats.class);
                         if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                            //                     System.out.println("Статус : " + response.getStatusCode().toString().trim().substring(0, 3));
                             checkResultCluster.put("Broker.status", response.getStatusCode().value());
                             ClusterStats stats = response.getBody();
                             //Кластер stats: brokerCount = " + stats.getBrokerCount());
@@ -226,7 +300,7 @@ public class ServiceCheck extends TimerTask {
                                 if (diskUsages != null && !diskUsages.isEmpty()) {
                                     //ВНИМАНИЕ: brokerCount != 3
                                     for (DiskUsage usage : diskUsages) {
-                                        System.out.println("  - Broker ID: " + usage.getBrokerId() +
+                                        logger.info("  - Broker ID: " + usage.getBrokerId() +
                                                 ", segmentSize: " + usage.getSegmentSize() +
                                                 ", segmentCount: " + usage.getSegmentCount());
                                     }

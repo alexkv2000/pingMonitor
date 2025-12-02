@@ -42,7 +42,7 @@ public class PingController {
     }
     @GetMapping("/help")
     public String help() {
-        System.out.println("'/' - мониторинг пинга серверов; \n'/api/ping' - просмотр ответов в JSON формате; \n'/api/setPC?computerName=NameConputer' - добавить ПК для мониторинга; \n'/api/removePC?computerName=NameConputer' - удалить ПК из мониторинга; \n'/api/clearAllPingData' - очистить таблицу мониторинга.\n");
+        System.out.println("'/' - мониторинг пинга серверов; \n'/api/ping' - просмотр ответов в JSON формате; \n'/api/setPC?computerName=NameConputer' - добавить ПК для мониторинга; \n'/api/removePC?computerName=NameConputer' - удалить ПК из мониторинга; \n'/api/clearAllPingData' - очистить таблицу мониторинга.\n':(9990)/metrics' - метрика для Prometheus.\n");
         return "help";
     }
     @GetMapping("/api/ping")
