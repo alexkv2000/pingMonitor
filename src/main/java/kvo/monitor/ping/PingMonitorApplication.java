@@ -17,7 +17,7 @@ import java.util.Timer;
 
 @SpringBootApplication
 @EnableScheduling
-@ComponentScan(basePackages = {"kvo.monitor.sizetable", "kvo.monitor.ping"})
+@ComponentScan(basePackages = {"kvo.monitor.pcMonitorService", "kvo.monitor.sizetable", "kvo.monitor.ping"})
 public class PingMonitorApplication {
     @Value("${server.sync}")
     private String SERVER_SYNC;

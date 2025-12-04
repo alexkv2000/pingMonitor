@@ -70,6 +70,17 @@
             <artifactId>simpleclient_httpserver</artifactId>
             <version>${prometheus.version}</version>
         </dependency>
+        <!-- Для Мониторинга оперативки и Процессоров ПК f так же сервисов.-->
+        <dependency>
+            <groupId>org.jfree</groupId>
+            <artifactId>jfreechart</artifactId>
+            <version>1.5.6</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.oshi</groupId>
+            <artifactId>oshi-core</artifactId>
+            <version>6.9.1</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

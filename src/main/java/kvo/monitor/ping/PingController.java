@@ -1,5 +1,6 @@
 package kvo.monitor.ping;
 
+import kvo.monitor.pcMonitorService.PCMonitorService;
 import kvo.monitor.sizetable.SizeTableService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,9 +20,12 @@ public class PingController {
     private PingService pingService;
     @Autowired
     private SizeTableService sizeTableService;
+    @Autowired
+    private PCMonitorService pcMonitorService;
 
     @Value("${server.admin}")
     private String serverAdmin;
+
     @GetMapping("/")
     public String index(Model model) throws UnknownHostException {
         model.addAttribute("servers", pingService.getPingData().keySet());
@@ -82,5 +86,14 @@ public class PingController {
     @GetMapping("/api/sizeTable")
     public String getSizeTable() {
         return "sizeTable";
+    }
+    @GetMapping("/api/monitorPC")
+    public String monitorPC(Model model) {
+        String mainGraphBase64 = pcMonitorService.generateMainGraph();
+        String barGraphBase64 = pcMonitorService.generateTopProcessesGraph();
+
+        model.addAttribute("mainGraph", mainGraphBase64);
+        model.addAttribute("barGraph", barGraphBase64);
+        return "monitorPC";  // Шаблон Thymeleaf (создайте его, см. ниже)
     }
 }
